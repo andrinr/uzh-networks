@@ -1,10 +1,11 @@
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
-import random
 import queue 
+import random
 
+# I did not include a explicit single walker version as this one can be used with a single node as well
+# Furhtermore, the initialize_events functions is called when the simulation instance is created, which I think makes more sense
+# then the run function is sepparated from the initialization
 class Simulation:
     def __init__(
             self, 
@@ -14,24 +15,25 @@ class Simulation:
             t_end : int, 
             start_node : int = -1):
 
-        self.G = G
-        self.lambda_ = lambda_
-        self.t_end = t_end
         self.n_walkers = n_walkers
+        self.G = G
 
-        self.node_log = []
-        self.walker_log = []
-        self.timeline = []
-        self.t = 0
-        
+        self.lambda_ = lambda_
+
+        self.t, self.t_end = 0, t_end
+
+        self.node_log, self.walker_log, self.timeline = [], [], []
+
         self.initialize_events(start_node=start_node)
         self.store_results()
 
-    def run(self):
+    def run(self, storage_interval : float = 1):
 
+        checkpoint = 0
         while self.t < self.t_end:
             # get next event
             self.t, id = self.queue.get_nowait()
+            
             # move walker
             neighbours = list(self.G.neighbors(self.positions[id]))
 
@@ -41,13 +43,22 @@ class Simulation:
                 continue
 
             self.positions[id] = neighbours[random.randint(0, len(neighbours)-1)]
-            #print(self.t, self.positions[id])
+
             # update waiting time
             self.times[id] = self.t + np.random.exponential(1/self.lambda_)
             # add new event
+            
+            #elif self.RW_type == 'edge-centric':
+            
+            #tau = np.random.exponential(1/(self.lambda_ * self.G.degree(walker.position)))
+            
             self.queue.put_nowait((self.times[id], id))
 
-            self.store_results()
+            # results are only stored after a certain time interval
+            # this greatly reduces the memory footprint (and repsectively the runtime)
+            if self.t - checkpoint > storage_interval:
+                checkpoint = self.t
+                self.store_results()
 
         self.node_log = np.stack(self.node_log, axis=0)
         self.walker_log = np.stack(self.walker_log, axis=0)
@@ -69,21 +80,3 @@ class Simulation:
         self.walker_log.append(self.positions.copy())
         self.node_log.append(np.bincount(self.positions, minlength=self.G.number_of_nodes()))
         self.timeline.append(self.t)
-
-def sample_ER(N, p):
-    rd = np.random.rand(N,N)
-    A = np.triu(rd < (p))
-    np.fill_diagonal(A, 0)
-    return A
-    
-def gen_com_graph(N, n_coms, p_high, p_low):
-    N_pc = int(N / n_coms)
-    A_struct = np.zeros((N,N))
-    for i in range(n_coms):
-        A_struct[i*N_pc:(i+1)*N_pc, i*N_pc:(i+1)*N_pc] = sample_ER(N_pc, p_high)
-    A_random = sample_ER(N, p_low)
-    A = A_struct + A_random
-    
-
-    return nx.from_numpy_matrix(A), A_struct, A_random
-
