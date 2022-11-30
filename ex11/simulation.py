@@ -18,11 +18,10 @@ class Simulation:
             self, 
             G : nx.Graph, 
             lambda_ : float, 
-            t_end : int, 
-            D_S : float = 0.0,
-            D_I : float = 0.0,
-            beta : float = 0.0,
-            mu : float = 0.0):
+            D_S : float = 0.1,
+            D_I : float = 0.1,
+            beta : float = 0.1,
+            mu : float = 0.01):
         """
         Initialize the simulation
         
@@ -48,18 +47,19 @@ class Simulation:
 
         self.lambda_ = lambda_
 
-        self.t, self.t_end = 0, t_end
+        self.t = 0
         self.D_S = D_S
         self.D_I = D_I
         self.beta = beta
         self.mu = mu
         self.infected_walkers = np.zeros(self.G.number_of_nodes())
+        self.total_walkers = np.zeros(self.G.number_of_nodes())
         self.queue = queue.PriorityQueue()
 
         # for efficiency reasons the walker positions are stored as an array as well
-        self.node_log, self.walker_log, self.timeline = [], [], []
+        self.node_log, self.walker_log, self.infected_log, self.timeline = [], [], [], []
 
-    def run(self, storage_interval : float = 1):
+    def run(self, duration, storage_interval : float = 1):
         """
         Run the simulation
 
@@ -71,11 +71,18 @@ class Simulation:
         self.__initialize_events()
         self.__store_results()
 
+        end_time = self.t + duration
         checkpoint = 0
-        while self.t < self.t_end:
-            self.t, (id, next_pos) = self.queue.get_nowait()
-            
-            self.__move_walker(id, next_pos)
+        while self.t < end_time:
+            self.t, (id, event, next_pos) = self.queue.get_nowait()
+            print(self.t, id, event, next_pos)
+            if event == Change.RECOVER:
+                self.__set_infection_status(id, False)
+            elif event == Change.INFECT:
+                self.__set_infection_status(id, True)
+            elif event == Change.JUMP:
+                self.__jump(id, next_pos)
+
             self.queue.put_nowait(self.__get_next_event(id))
 
             # results are only stored after a certain time interval
@@ -86,6 +93,7 @@ class Simulation:
 
         self.node_log = np.stack(self.node_log, axis=0)
         self.walker_log = np.stack(self.walker_log, axis=0)
+        self.infected_log = np.stack(self.infected_log, axis=0)
 
         return self
 
@@ -101,6 +109,7 @@ class Simulation:
         self.n_walkers = n_walkers
         self.positions = np.random.randint(0, self.G.number_of_nodes(), self.n_walkers)
         self.walkers = [Walker(idx, pos, False) for idx, pos in enumerate(self.positions)]
+        self.total_walkers = np.bincount(self.positions, minlength=self.G.number_of_nodes())
 
         return self
 
@@ -118,6 +127,7 @@ class Simulation:
         self.n_walkers = n_walkers
         self.positions = np.full(self.n_walkers, node)
         self.walkers = [Walker(idx, pos, False) for idx, pos in enumerate(self.positions)]
+        self.total_walkers[node] = n_walkers
 
         return self
 
@@ -133,7 +143,7 @@ class Simulation:
         n_infected = int(self.n_walkers * percentage)
         infected_walkers = np.random.choice(self.n_walkers, n_infected, replace=False)
         for id in infected_walkers:
-            self.__change_infection_status(id, True)
+            self.__set_infection_status(id, True)
 
         return self
 
@@ -144,9 +154,9 @@ class Simulation:
         for walker in self.walkers:
             self.queue.put_nowait(self.__get_next_event(walker.id))
 
-    def __move_walker(self, id : int, new_position : int):
+    def __jump(self, id : int, new_position : int):
         """
-        Moves a walker to a new position
+        Moves a walker to a new position and updates datastructures
 
         Parameters:
         -----------
@@ -156,10 +166,18 @@ class Simulation:
             The new position of the walker
         """
         walker = self.walkers[id]
+
+        self.total_walkers[walker.position] -= 1
+        self.total_walkers[new_position] += 1
+
+        if walker.infected:
+            self.infected_walkers[walker.position] -= 1
+            self.infected_walkers[new_position] += 1
+
         walker.position = new_position
         self.positions[id] = new_position
 
-    def __change_infection_status(self, id : int, status : bool):
+    def __set_infection_status(self, id : int, status : bool):
         """
         Change the infection status of a walker
 
@@ -170,12 +188,14 @@ class Simulation:
         status : bool
             The new infection status of the walker
         """
-        if status == True:
-            self.infected_walkers.append(id)
+        walker = self.walkers[id]
+        prev_status = walker.is_infected
+        if prev_status == True and status == False:
+            self.infected_walkers[walker.position] -= 1
+        elif prev_status == False and status == True:
+            self.infected_walkers[walker.position] += 1
+        walker.is_infected = status
 
-        self.walkers[id].infection_status = status
-  
-        
     def __get_next_event(self, id : int) -> tuple:
         """
         Get the next event for a walker
@@ -194,15 +214,17 @@ class Simulation:
         """
         walker = self.walkers[id]
 
-        jump_time = self.t + np.random.exponential(1 / self.lambda_)
-        recovery_time = self.t + np.random.exponential(1 / self.D_I)
-        infection_time = self.t + np.random.exponential(1 / self.D_S)
+        jump_time = self.t + \
+            np.random.exponential(self.D_I if walker.is_infected else self.D_S)
+        recovery_time = self.t + np.random.exponential(self.mu)
+        infection_time = self.t + \
+            np.random.exponential(self.beta * self.infected_walkers[walker.position])
 
         if walker.is_infected and recovery_time < jump_time:
             # recover
             return (recovery_time, (id, walker.position, Change.RECOVER))
         elif not walker.is_infected and infection_time < jump_time:
-            # infect
+            # get infected
             return (infection_time, (id, walker.position, Change.INFECT))
         else:
             # jump
@@ -218,5 +240,6 @@ class Simulation:
         Store the current state of the simulation
         """
         self.walker_log.append(self.positions.copy())
-        self.node_log.append(np.bincount(self.positions, minlength=self.G.number_of_nodes()))
+        self.node_log.append(self.total_walkers.copy())
+        self.infected_log.append(self.infected_walkers.copy())
         self.timeline.append(self.t)

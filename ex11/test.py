@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
-from walkers import Simulation
+from simulation import Simulation
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -28,10 +28,10 @@ G, _, _ = gen_com_graph(20, 1, 0.16, 0.001)
 
 nx.draw(G, with_labels=True)
 
-sim = Simulation(G, 0.1, 200)\
+sim = Simulation(G, 0.1, 0.3, 0.3, 0.2, 0.1)\
     .init_walkers_uniform(10000)\
     .infect_walkers(0.01)\
-    .run()
+    .run(10)
 
 fig, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(9, 12))
 
