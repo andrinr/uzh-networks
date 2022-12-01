@@ -5,7 +5,7 @@ import random
 from enum import Enum
 from walker import Walker
 
-class Change(Enum):
+class Event(Enum):
     RECOVER = 1
     INFECT = 2
     JUMP = 3
@@ -75,12 +75,12 @@ class Simulation:
         checkpoint = 0
         while self.t < end_time:
             self.t, (id, event, next_pos) = self.queue.get_nowait()
-            print(self.t, id, event, next_pos)
-            if event == Change.RECOVER:
+            #print(self.t, id, event, next_pos)
+            if event == Event.RECOVER:
                 self.__set_infection_status(id, False)
-            elif event == Change.INFECT:
+            elif event == Event.INFECT:
                 self.__set_infection_status(id, True)
-            elif event == Change.JUMP:
+            elif event == Event.JUMP:
                 self.__jump(id, next_pos)
 
             self.queue.put_nowait(self.__get_next_event(id))
@@ -170,12 +170,13 @@ class Simulation:
         self.total_walkers[walker.position] -= 1
         self.total_walkers[new_position] += 1
 
-        if walker.infected:
+        if walker.is_infected:
             self.infected_walkers[walker.position] -= 1
             self.infected_walkers[new_position] += 1
 
         walker.position = new_position
         self.positions[id] = new_position
+        #print(self.positions[id])
 
     def __set_infection_status(self, id : int, status : bool):
         """
@@ -222,10 +223,10 @@ class Simulation:
 
         if walker.is_infected and recovery_time < jump_time:
             # recover
-            return (recovery_time, (id, walker.position, Change.RECOVER))
+            return (recovery_time, (id, Event.RECOVER, walker.position))
         elif not walker.is_infected and infection_time < jump_time:
             # get infected
-            return (infection_time, (id, walker.position, Change.INFECT))
+            return (infection_time, (id, Event.INFECT, walker.position))
         else:
             # jump
             pos = walker.position
@@ -233,12 +234,13 @@ class Simulation:
                 return (np.inf, (id, pos))
 
             new_pos = random.choice(list(self.G[pos]))
-            return jump_time, (id, new_pos, Change.JUMP)
+            return jump_time, (id,  Event.JUMP, new_pos)
 
     def __store_results(self):
         """
         Store the current state of the simulation
         """
+        print(self.total_walkers)
         self.walker_log.append(self.positions.copy())
         self.node_log.append(self.total_walkers.copy())
         self.infected_log.append(self.infected_walkers.copy())
