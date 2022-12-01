@@ -41,7 +41,7 @@ scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
 
 for i in range(0, sim.G.number_of_nodes(), 1):
     color_val = scalarMap.to_rgba(i)
-    ax1.plot(sim.timeline, sim.node_log[:,i]/sim.n_walkers, label=i, color=color_val)
+    ax1.plot(sim.timeline, sim.infected_log[:,i]/sim.node_log[:,i], label=i, color=color_val)
 
 ax1.set_title('All walkers start at node 10')
 ax1.set_xlabel('Time')

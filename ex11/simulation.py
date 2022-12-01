@@ -17,7 +17,6 @@ class Simulation:
     def __init__(
             self, 
             G : nx.Graph, 
-            lambda_ : float, 
             D_S : float = 0.1,
             D_I : float = 0.1,
             beta : float = 0.1,
@@ -29,8 +28,6 @@ class Simulation:
         -----------
         G : nx.Graph
             The graph on which the walkers are moving
-        lambda_ : float
-            The rate at which the walkers move
         t_end : int
             The time at which the simulation ends
         D_S : float
@@ -44,8 +41,6 @@ class Simulation:
         """
         self.walkers = []
         self.G = G
-
-        self.lambda_ = lambda_
 
         self.t = 0
         self.D_S = D_S
