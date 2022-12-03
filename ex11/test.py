@@ -28,7 +28,7 @@ G, _, _ = gen_com_graph(20, 1, 0.16, 0.001)
 
 nx.draw(G, with_labels=True)
 
-sim = Simulation(G, 0.1, 0.3, 0.3, 0.2, 0.1)\
+sim = Simulation(G, 0.3, 0.3, 0.2, 0.1)\
     .init_walkers_uniform(10000)\
     .infect_walkers(0.01)\
     .run(10)

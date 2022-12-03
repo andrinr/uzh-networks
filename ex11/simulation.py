@@ -10,9 +10,6 @@ class Event(Enum):
     INFECT = 2
     JUMP = 3
 
-# I did not include a explicit single walker version as this one can be used with a single node as well
-# Furhtermore, the initialize_events functions is called when the simulation instance is created, which I think makes more sense
-# then the run function is sepparated from the initialization
 class Simulation:
     def __init__(
             self, 
@@ -54,14 +51,21 @@ class Simulation:
         # for efficiency reasons the walker positions are stored as an array as well
         self.node_log, self.walker_log, self.infected_log, self.timeline = [], [], [], []
 
-    def run(self, duration, storage_interval : float = 1):
+    def run(self, duration = 10, storage_interval : float = 0.1):
         """
         Run the simulation
 
         Parameters:
         -----------
+        duration : int
+            The duration of the simulation
         storage_interval : float
             The interval at which the results are stored
+
+        Returns:
+        --------
+        self : Simulation
+            The simulation instance
         """
         self.__initialize_events()
         self.__store_results()
@@ -100,6 +104,11 @@ class Simulation:
         -----------
         n_walkers : int
             The number of walkers
+
+        Returns:
+        --------
+        self : Simulation
+            The simulation instance
         """
         self.n_walkers = n_walkers
         self.positions = np.random.randint(0, self.G.number_of_nodes(), self.n_walkers)
@@ -118,6 +127,11 @@ class Simulation:
             The number of walkers
         node : int
             The node where all walkers are initialized
+
+        Returns:
+        --------
+        self : Simulation
+            The simulation instance
         """
         self.n_walkers = n_walkers
         self.positions = np.full(self.n_walkers, node)
@@ -134,6 +148,11 @@ class Simulation:
         -----------
         percentage : float
             The percentage of walkers that are infected
+
+        Returns:
+        --------
+        self : Simulation
+            The simulation instance
         """
         n_infected = int(self.n_walkers * percentage)
         infected_walkers = np.random.choice(self.n_walkers, n_infected, replace=False)
@@ -235,7 +254,6 @@ class Simulation:
         """
         Store the current state of the simulation
         """
-        print(self.total_walkers)
         self.walker_log.append(self.positions.copy())
         self.node_log.append(self.total_walkers.copy())
         self.infected_log.append(self.infected_walkers.copy())
