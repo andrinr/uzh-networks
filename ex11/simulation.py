@@ -5,6 +5,14 @@ import random
 from enum import Enum
 from walker import Walker
 
+class Recorder:
+    def __init(self, duration : float, interval : float):
+        self.duration = duration
+        self.interval = interval
+        self.data = []
+        self.time = 0.0
+
+
 class Event(Enum):
     RECOVER = 1
     INFECT = 2
@@ -51,7 +59,7 @@ class Simulation:
         # for efficiency reasons the walker positions are stored as an array as well
         self.node_log, self.walker_log, self.infected_log, self.timeline = [], [], [], []
 
-    def run(self, duration = 10, storage_interval : float = 0.1):
+    def run(self, duration = 10, storage_interval : float = 0.1, storage_mode : str = "linear"):
         """
         Run the simulation
 
@@ -86,7 +94,11 @@ class Simulation:
 
             # results are only stored after a certain time interval
             # this greatly reduces the memory footprint (and repsectively the runtime)
-            if self.t - checkpoint > storage_interval:
+            if storage_mode == 'linear' and self.t - checkpoint > storage_interval:
+                checkpoint = self.t
+                self.__store_results()
+            
+            if storage_mode == 'log' and np.log(self.t) - np.log(checkpoint) > storage_interval:
                 checkpoint = self.t
                 self.__store_results()
 
@@ -156,6 +168,7 @@ class Simulation:
         """
         n_infected = int(self.n_walkers * percentage)
         infected_walkers = np.random.choice(self.n_walkers, n_infected, replace=False)
+        #print(infected_walkers)
         for id in infected_walkers:
             self.__set_infection_status(id, True)
 

@@ -1,3 +1,5 @@
+from enum import Enum
+
 class Walker:
     def __init__(
             self, 

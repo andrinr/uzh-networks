@@ -21,15 +21,14 @@ def gen_com_graph(N, n_coms, p_high, p_low):
     A_random = sample_ER(N, p_low)
     A = A_struct + A_random
     
-
     return nx.from_numpy_matrix(A), A_struct, A_random
-G, _, _ = gen_com_graph(20, 1, 0.16, 0.001)
+G, _, _ = gen_com_graph(100, 1, 0.16, 0.001)
 
 
 nx.draw(G, with_labels=True)
 
-sim = Simulation(G, 0.3, 0.3, 0.2, 0.1)\
-    .init_walkers_uniform(10000)\
+sim = Simulation(G, 1.0, 0.1, 0.001, 0.1)\
+    .init_walkers_uniform(5000)\
     .infect_walkers(0.01)\
     .run(10)
 
@@ -39,9 +38,7 @@ jet = cm = plt.get_cmap('tab20c')
 cNorm  = colors.Normalize(vmin=0, vmax=sim.G.number_of_nodes())
 scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
 
-for i in range(0, sim.G.number_of_nodes(), 1):
-    color_val = scalarMap.to_rgba(i)
-    ax1.plot(sim.timeline, sim.infected_log[:,i]/sim.node_log[:,i], label=i, color=color_val)
+ax1.plot(sim.timeline, np.sum(sim.infected_log, axis=1), label='infected')
 
 ax1.set_title('All walkers start at node 10')
 ax1.set_xlabel('Time')
